@@ -1,7 +1,6 @@
-use std::error::Error;
-use std::thread;
+use reqwest::Client;
+use tokio;
 use serde::Deserialize;
-use reqwest::blocking;
 
 #[derive(Deserialize, Debug)]
 struct Story {
@@ -10,35 +9,21 @@ struct Story {
     url: String,
 }
 
-fn get_stories(cat: &str, id: &i32) -> Result<(), Box<dyn Error>> {
-    let id_string = id.to_string();
-    let url = format!("https://hacker-news.firebaseio.com/v0/item/{}.json", &id_string);
-    let resp = blocking::get(url)?;
-    let story: Story = resp.json()?;
-    println!("cat   : {}\ntitle : {}\nurl   : {}\n", cat, story.title, story.url);
+
+#[tokio::main]
+async fn main() -> Result<(), reqwest::Error> {
+    
+    let client = Client::new();
+    let top_stories_url = "https://hacker-news.firebaseio.com/v0/topstories.json";
+    let story_ids = client.get(top_stories_url).send().await?.json::<Vec<i32>>().await?;
+    for id in &story_ids[..5] {
+        let story = get_story(&client, id).await?;
+        println!("title : {}\nurl   : {}\n", story.title, story.url);
+    }
     Ok(())
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let ts_url = "https://hacker-news.firebaseio.com/v0/topstories.json";
-    let resp = blocking::get(ts_url)?;
-    let ts_ids: Vec<i32> = resp.json()?;
-
-    let handle = thread::spawn(move || {
-        for id in &ts_ids[..15] {
-            let _ = get_stories("top", id);
-        }
-    });
-
-    let ns_url = "https://hacker-news.firebaseio.com/v0/newstories.json";
-    let resp = blocking::get(ns_url)?;
-    let ns_ids: Vec<i32> = resp.json()?;
-
-    for id in &ns_ids[..15] {
-        let _ = get_stories("new", id);
-    }
-    
-    handle.join().unwrap();
-
-    Ok(())
+async fn get_story(client: &Client, id: &i32) -> Result<Story, reqwest::Error> {
+    let story_url = format!("https://hacker-news.firebaseio.com/v0/item/{}.json", id.to_string());
+    client.get(story_url).send().await?.json::<Story>().await
 }
