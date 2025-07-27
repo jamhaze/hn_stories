@@ -1,29 +1,35 @@
-use reqwest::Client;
 use tokio;
-use serde::Deserialize;
+use std::process;
+use clap::Parser;
 
-#[derive(Deserialize, Debug)]
-struct Story {
-    title: String,
-    #[serde(default)]
-    url: String,
+#[derive(Parser, Debug)]
+#[command(
+    version, 
+    about = "A program to retrieve the URLs of stories on hacker news via API", 
+    long_about = None
+)]
+pub struct Args {
+    
+    #[arg(
+        value_parser = ["new", "top", "best"], 
+        default_value = "top", 
+        help = "The category of the stories to fetch",
+    )]
+    story_cat: String,
+
+    #[arg(
+        default_value = "30", 
+        help = "The number of stories you wish to retrieve for the above category",
+    )]
+    num_stories: u8,
 }
-
 
 #[tokio::main]
-async fn main() -> Result<(), reqwest::Error> {
-    
-    let client = Client::new();
-    let top_stories_url = "https://hacker-news.firebaseio.com/v0/topstories.json";
-    let story_ids = client.get(top_stories_url).send().await?.json::<Vec<i32>>().await?;
-    for id in &story_ids[..5] {
-        let story = get_story(&client, id).await?;
-        println!("title : {}\nurl   : {}\n", story.title, story.url);
-    }
-    Ok(())
-}
+async fn main() {
+    let args = Args::parse();
 
-async fn get_story(client: &Client, id: &i32) -> Result<Story, reqwest::Error> {
-    let story_url = format!("https://hacker-news.firebaseio.com/v0/item/{}.json", id.to_string());
-    client.get(story_url).send().await?.json::<Story>().await
+    if let Err(e) = hn_stories::run(args.story_cat, args.num_stories.into()).await {
+        eprintln!("Application error: {e}");
+        process::exit(1);
+    };
 }
