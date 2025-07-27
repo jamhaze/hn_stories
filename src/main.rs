@@ -8,7 +8,7 @@ use clap::Parser;
     about = "A program to retrieve the URLs of stories on hacker news via API", 
     long_about = None
 )]
-pub struct Args {
+struct Args {
     
     #[arg(
         value_parser = ["new", "top", "best"], 
