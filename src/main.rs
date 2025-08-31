@@ -28,8 +28,8 @@ struct Args {
 async fn main() {
     let args = Args::parse();
 
-    if let Err(e) = hn_stories::run(args.story_cat, args.num_stories.into()).await {
-        eprintln!("Application error: {e}");
+    if let Err(error) = hn_stories::run(args.story_cat, args.num_stories.into()).await {
+        eprintln!("ERROR: {error}");
         process::exit(1);
     };
 }
