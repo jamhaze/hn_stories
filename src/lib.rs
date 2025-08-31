@@ -2,12 +2,19 @@ use serde::Deserialize;
 use reqwest::Client;
 use futures::future::join_all;
 use std::cmp::PartialEq;
+use std::fmt;
 
 #[derive(Deserialize, Debug)]
 struct Story {
     title: String,
     #[serde(default)]
     url: String,
+}
+
+impl fmt::Display for Story {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Title : {}\nURL   : {}\n", self.title, self.url)
+    }
 }
 
 impl PartialEq for Story {
@@ -31,10 +38,10 @@ pub async fn run(story_cat: String, num_stories: usize) -> Result<(), reqwest::E
 			let handle = async {	     
 				match get_story(&client, item_url).await {
                     Ok(story) => {
-                        println!("title : {}\nurl   : {}\n", story.title, story.url);
+                        println!("{}", story);
                     }
                     Err(error) => {
-                        println!("error : {}\n", error);
+                        println!("ERROR : {}\n", error);
                     }
                 }
                 
@@ -50,7 +57,9 @@ pub async fn run(story_cat: String, num_stories: usize) -> Result<(), reqwest::E
 }
 
 async fn get_story(client: &Client, item_url: String) -> Result<Story, reqwest::Error> {
-    Ok(client.get(item_url).send().await?.json::<Story>().await?)
+    let resp = client.get(item_url).send().await?;
+    let story = resp.json::<Story>().await?;
+    Ok(story)
 }
 
 #[cfg(test)]
@@ -58,10 +67,9 @@ mod tests {
     use httpmock::prelude::*;
     use serde_json::json;
     use super::*;
-		
 	
-	#[tokio::test]
-	async fn get_story_test() {	
+    #[tokio::test]
+	async fn test_get_story() {	
 		let client = Client::new();
 		let test_story = Story {
 			title: String::from("This is a test"),
