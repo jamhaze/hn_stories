@@ -5,7 +5,7 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(
     version, 
-    about = "A program to retrieve the URLs of stories on hacker news via API", 
+    about = "This is a command line tool for retrieving the URLs of stories posted on https://news.ycombinator.com/", 
     long_about = None
 )]
 struct Args {
