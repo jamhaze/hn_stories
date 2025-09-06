@@ -8,7 +8,8 @@ reqwest = { version = "0.11", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 clap = { version = "4.5.41", features = ["derive"] }
-futures = { version = "0.3.21"}
+futures = { version = "0.3.21" }
+chrono = { version = "0.4" }
 
 [dev-dependencies]
 httpmock = "0.7.0-rc.1"
