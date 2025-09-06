@@ -3,10 +3,14 @@ use reqwest::Client;
 use futures::future::join_all;
 use std::cmp::PartialEq;
 use std::fmt;
+use chrono::{DateTime, Local};
 
 #[derive(Deserialize, Debug)]
 struct Story {
-    title: String,
+	#[serde(default)]
+    time: i64,
+	#[serde(default = "return_na_string")]
+	title: String,
     #[serde(default = "return_na_string")]
     url: String,
 }
@@ -17,7 +21,11 @@ fn return_na_string() -> String {
 
 impl fmt::Display for Story {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Title : {}\nURL   : {}\n", self.title, self.url)
+		let mut local_dt_string = String::from("Unknown");
+		if let Some(dt) = DateTime::from_timestamp(self.time, 0) {
+			local_dt_string = dt.with_timezone(&Local).to_string();
+		}
+		write!(f, "Time  : {}\nTitle : {}\nURL   : {}\n", local_dt_string, self.title, self.url)
     }
 }
 
@@ -76,6 +84,7 @@ mod tests {
 	async fn test_get_story() {	
 		let client = Client::new();
 		let test_story = Story {
+			time: 0000000000,
 			title: String::from("This is a test"),
 			url: String::from("https://www.test.com"),	
         };
@@ -99,9 +108,7 @@ mod tests {
 		let result = get_story(&client, server.url("/v0/item/10000000.json")).await;
         
 		mock.assert();
-        //let result_unwrapped = result.unwrap();
-        assert!(result.is_ok());
-		assert_eq!(result.unwrap(), test_story);
+        assert_eq!(result.unwrap(), test_story);
 			
 	}
 
@@ -109,6 +116,7 @@ mod tests {
     async fn test_no_url() {
         let client = Client::new();
         let test_story = Story {
+			time: 0000000000, 
             title: String::from("This is a test"),
             url: String::from("N/A"),
         };
