@@ -1,4 +1,6 @@
-A program to retrieve the URLs of stories on hacker news via API
+# hn_stories
+```
+This is a command line tool for retrieving the URLs of stories posted on https://news.ycombinator.com/
 
 Usage: hn_stories [OPTIONS]
 
@@ -8,3 +10,4 @@ Options:
   -t, --time                  Display the time at which the story was posted
   -h, --help                  Print help
   -V, --version               Print version
+```
