@@ -1,14 +1,10 @@
-# hn_stories
+A program to retrieve the URLs of stories on hacker news via API
 
-## Discription
-This is a command line tool for retrieving the titles and URLs of stories posted on https://news.ycombinator.com/
+Usage: hn_stories [OPTIONS]
 
-    Usage: hn_stories [STORY_CAT] [NUM_STORIES]
-
-    Arguments:
-    [STORY_CAT]    The category of the stories to fetch [default: top] [possible values: new, top, best]
-    [NUM_STORIES]  The number of stories you wish to retrieve for the above category [default: 30]
-
-    Options:
-    -h, --help     Print help
-    -V, --version  Print version
+Options:
+  -c, --category <STORY_CAT>  The category of the stories to fetch [default: top] [possible values: new, top, best]
+  -l, --limit <LIMIT>         Set the limit for the number of stories you wish to retrieve for the above category [default: 30]
+  -t, --time                  Display the time at which the story was posted
+  -h, --help                  Print help
+  -V, --version               Print version

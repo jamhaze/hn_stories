@@ -2,40 +2,44 @@ use serde::Deserialize;
 use reqwest::Client;
 use futures::future::join_all;
 use std::cmp::PartialEq;
-use std::fmt;
 use chrono::{DateTime, Local};
 
 #[derive(Deserialize, Debug)]
 struct Story {
-	#[serde(default)]
-    time: i64,
 	#[serde(default = "return_na_string")]
 	title: String,
     #[serde(default = "return_na_string")]
     url: String,
+    #[serde(default)]
+    time: i64,
 }
 
 fn return_na_string() -> String {
     "N/A".to_string()
 }
 
-impl fmt::Display for Story {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		let mut local_dt_string = String::from("Unknown");
-		if let Some(dt) = DateTime::from_timestamp(self.time, 0) {
-			local_dt_string = dt.with_timezone(&Local).to_string();
-		}
-		write!(f, "Time  : {}\nTitle : {}\nURL   : {}\n", local_dt_string, self.title, self.url)
+impl Story {
+    fn show(&self, show_time: bool) {
+        println!("Title : {}", self.title);
+        println!("URL   : {}", self.url);
+        if show_time {
+    		let mut local_dt_string = String::from("Unknown");
+	    	if let Some(dt) = DateTime::from_timestamp(self.time, 0) {
+                local_dt_string = dt.with_timezone(&Local).to_string();
+		    }
+            println!("Time  : {local_dt_string}");
+        }
+        println!();
     }
 }
 
 impl PartialEq for Story {
     fn eq(&self, other: &Self) -> bool {
-        self.title == other.title && self.url == other.url
+        self.title == other.title && self.url == other.url && self.time == other.time
     }
 }
 
-pub async fn run(story_cat: String, num_stories: usize) -> Result<(), reqwest::Error> {
+pub async fn run(story_cat: String, limit: u8, show_time: bool) -> Result<(), reqwest::Error> {
     
     let client = Client::new();
     let stories_url = format!("https://hacker-news.firebaseio.com/v0/{}stories.json", story_cat);
@@ -43,14 +47,15 @@ pub async fn run(story_cat: String, num_stories: usize) -> Result<(), reqwest::E
    			 
     let mut handles = vec![];
     let mut i: usize = 0;
-    while i < num_stories && i < story_ids.len() {
+    let limit = limit.into();
+    while i < limit && i < story_ids.len() {
         
         if let Some(item) = story_ids.get(i) {
            	let item_url = format!("https://hacker-news.firebaseio.com/v0/item/{}.json", item);
 			let handle = async {	     
 				match get_story(&client, item_url).await {
                     Ok(story) => {
-                        println!("{}", story);
+                        story.show(show_time);
                     }
                     Err(error) => {
                         println!("ERROR : {}\n", error);

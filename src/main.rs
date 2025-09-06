@@ -11,6 +11,8 @@ use clap::Parser;
 struct Args {
     
     #[arg(
+        short = 'c',
+        long = "category",
         value_parser = ["new", "top", "best"], 
         default_value = "top", 
         help = "The category of the stories to fetch",
@@ -18,17 +20,26 @@ struct Args {
     story_cat: String,
 
     #[arg(
+        short,
+        long,
         default_value = "30", 
-        help = "The number of stories you wish to retrieve for the above category",
+        help = "Set the limit for the number of stories you wish to retrieve for the above category",
     )]
-    num_stories: u8,
+    limit: u8,
+
+    #[arg(
+        short = 't',
+        long = "time",
+        help = "Display the time at which the story was posted",
+    )]
+    show_time: bool,
 }
 
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
 
-    if let Err(error) = hn_stories::run(args.story_cat, args.num_stories.into()).await {
+    if let Err(error) = hn_stories::run(args.story_cat, args.limit, args.show_time).await {
         eprintln!("ERROR: {error}");
         process::exit(1);
     };
