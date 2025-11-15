@@ -17,7 +17,7 @@ struct Cli {
         short,
         long,
         default_value = "30", 
-        help = "Set the limit for the number of stories you wish to retrieve for the above category",
+        help = "Set the limit for the number of stories you wish to retrieve with above options",
     )]
     limit: u8,
 
