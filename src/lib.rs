@@ -1,8 +1,10 @@
 use serde::Deserialize;
+use serde_json::Value;
 use reqwest::Client;
 use futures::future::join_all;
 use std::cmp::PartialEq;
 use chrono::{DateTime, Local};
+
 
 #[derive(Deserialize, Debug)]
 struct Story {
@@ -39,38 +41,68 @@ impl PartialEq for Story {
     }
 }
 
-pub async fn run(story_cat: String, limit: u8, show_time: bool) -> Result<(), reqwest::Error> {
-    
+pub async fn run(category: Option<String>, query: Option<String>, limit: u8, time: bool) -> Result<(), reqwest::Error> {
     let client = Client::new();
-    let stories_url = format!("https://hacker-news.firebaseio.com/v0/{}stories.json", story_cat);
+    
+    if let Some(c) = category {
+        let stories = get_stories_by_category(&client, c, limit).await?;
+        for story in stories {
+            story.show(time);
+        }
+    } else if let Some(q) = query {
+        get_stories_by_search(&client, q).await?;
+    }
+    Ok(())
+}
+
+async fn get_stories_by_category(client: &Client, category: String, limit: u8) -> Result<Vec<Story>, reqwest::Error> {
+    let stories_url = format!("https://hacker-news.firebaseio.com/v0/{}stories.json", category);
     let story_ids = client.get(stories_url).send().await?.json::<Vec<i32>>().await?;
-   			 
+    
     let mut handles = vec![];
     let mut i: usize = 0;
     let limit = limit.into();
+    
     while i < limit && i < story_ids.len() {
-        
         if let Some(item) = story_ids.get(i) {
            	let item_url = format!("https://hacker-news.firebaseio.com/v0/item/{}.json", item);
 			let handle = async {	     
 				match get_story(&client, item_url).await {
-                    Ok(story) => {
-                        story.show(show_time);
+                    Ok(story) => story,
+                    Err(_) => {
+                        let error_story = Story {
+                            time: 0000000000,
+                            title: String::from("ERROR: Failed to retrieve story"),
+                            url: String::from(""),	
+                        };
+                        error_story
                     }
-                    Err(error) => {
-                        println!("ERROR : {}\n", error);
-                    }
-                }
-                
+                } 
             };
             handles.push(handle);
         }
         i += 1;
     }
+    let stories = join_all(handles).await;
+    Ok(stories)
+    //TODO make the function return the reciever end of a channel.
+}
 
-    let _ = join_all(handles).await;
-    
+async fn get_stories_by_search(client: &Client, query: String) -> Result<(), reqwest::Error> {
+    let search_url = format!("http://hn.algolia.com/api/v1/search?query={}&tags=story", query);
+    let resp = client.get(search_url).send().await?;
+    let json_text = resp.text().await?;
+    let result = get_json_value(&json_text);
+    match result {
+        Ok(v) => println!("{}", v["hits"][0]["title"]),
+        Err(_) => println!("Error decoding json"),
+    }
     Ok(())
+}
+
+fn get_json_value(text: &str) -> Result<Value, serde_json::Error> {
+    let value: Value = serde_json::from_str(text)?;
+    Ok(value)
 }
 
 async fn get_story(client: &Client, item_url: String) -> Result<Story, reqwest::Error> {
