@@ -43,25 +43,28 @@ impl PartialEq for Story {
 
 pub async fn run(category: Option<String>, query: Option<String>, limit: u8, time: bool) -> Result<(), reqwest::Error> {
     let client = Client::new();
-    
+    let limit = limit.into();
+
     if let Some(c) = category {
         let stories = get_stories_by_category(&client, c, limit).await?;
         for story in stories {
             story.show(time);
         }
     } else if let Some(q) = query {
-        get_stories_by_search(&client, q).await?;
+        let stories = get_stories_by_search(&client, q, limit).await?;
+        for story in stories {
+            story.show(time);
+        }
     }
     Ok(())
 }
 
-async fn get_stories_by_category(client: &Client, category: String, limit: u8) -> Result<Vec<Story>, reqwest::Error> {
+async fn get_stories_by_category(client: &Client, category: String, limit: usize) -> Result<Vec<Story>, reqwest::Error> {
     let stories_url = format!("https://hacker-news.firebaseio.com/v0/{}stories.json", category);
     let story_ids = client.get(stories_url).send().await?.json::<Vec<i32>>().await?;
     
     let mut handles = vec![];
     let mut i: usize = 0;
-    let limit = limit.into();
     
     while i < limit && i < story_ids.len() {
         if let Some(item) = story_ids.get(i) {
@@ -88,19 +91,39 @@ async fn get_stories_by_category(client: &Client, category: String, limit: u8) -
     //TODO make the function return the reciever end of a channel.
 }
 
-async fn get_stories_by_search(client: &Client, query: String) -> Result<(), reqwest::Error> {
+async fn get_stories_by_search(client: &Client, query: String, limit: usize) -> Result<Vec<Story>, reqwest::Error> {
+    
     let search_url = format!("http://hn.algolia.com/api/v1/search?query={}&tags=story", query);
     let resp = client.get(search_url).send().await?;
     let json_text = resp.text().await?;
-    let result = get_json_value(&json_text);
+    let result = get_json_from_str(&json_text);
+    let mut stories = vec![];
     match result {
-        Ok(v) => println!("{}", v["hits"][0]["title"]),
-        Err(_) => println!("Error decoding json"),
+        Ok(value) => {
+            if let Some(hits) = value["hits"].as_array() {
+                let mut i: usize = 0;
+                while i < limit && i < hits.len() {
+                    let hit = &hits[i];
+                    if let (Some(h_time), Some(h_title), Some(h_url)) = 
+                    (hit["created_at_i"].as_i64(), 
+                    hit["title"].as_str(), 
+                    hit["url"].as_str()) {
+                        stories.push(Story {
+                            time: h_time,
+                            title: String::from(h_title),
+                            url: String::from(h_url),
+                        });
+                    }
+                    i += 1;
+                }
+            }
+        }
+        Err(error) => eprintln!("ERROR: {error}"),
     }
-    Ok(())
+    Ok(stories)
 }
 
-fn get_json_value(text: &str) -> Result<Value, serde_json::Error> {
+fn get_json_from_str(text: &str) -> Result<Value, serde_json::Error> {
     let value: Value = serde_json::from_str(text)?;
     Ok(value)
 }
