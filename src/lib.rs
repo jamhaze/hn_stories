@@ -44,17 +44,14 @@ impl PartialEq for Story {
 pub async fn run(category: Option<String>, query: Option<String>, limit: u8, time: bool) -> Result<(), reqwest::Error> {
     let client = Client::new();
     let limit = limit.into();
-
+    let mut stories = vec![];
     if let Some(c) = category {
-        let stories = get_stories_by_category(&client, c, limit).await?;
-        for story in stories {
-            story.show(time);
-        }
+        stories = get_stories_by_category(&client, c, limit).await?;
     } else if let Some(q) = query {
-        let stories = get_stories_by_search(&client, q, limit).await?;
-        for story in stories {
-            story.show(time);
-        }
+        stories = get_stories_by_search(&client, q, limit).await?;
+    }
+    for story in stories {
+        story.show(time);
     }
     Ok(())
 }
@@ -71,14 +68,10 @@ async fn get_stories_by_category(client: &Client, category: String, limit: usize
            	let item_url = format!("https://hacker-news.firebaseio.com/v0/item/{}.json", item);
 			let handle = async {	     
 				match get_story(&client, item_url).await {
-                    Ok(story) => story,
-                    Err(_) => {
-                        let error_story = Story {
-                            time: 0000000000,
-                            title: String::from("ERROR: Failed to retrieve story"),
-                            url: String::from(""),	
-                        };
-                        error_story
+                    Ok(story) => Some(story),
+                    Err(err) => {
+                        eprintln!("ERROR: {err}");
+                        None
                     }
                 } 
             };
@@ -86,9 +79,21 @@ async fn get_stories_by_category(client: &Client, category: String, limit: usize
         }
         i += 1;
     }
-    let stories = join_all(handles).await;
+    let joined = join_all(handles).await;
+
+    let mut stories = vec![];
+    for story_opt in joined {
+        if let Some(story) = story_opt {
+            stories.push(story);
+        }
+    }
     Ok(stories)
-    //TODO make the function return the reciever end of a channel.
+}
+
+async fn get_story(client: &Client, item_url: String) -> Result<Story, reqwest::Error> {
+    let resp = client.get(item_url).send().await?;
+    let story = resp.json::<Story>().await?;
+    Ok(story)
 }
 
 async fn get_stories_by_search(client: &Client, query: String, limit: usize) -> Result<Vec<Story>, reqwest::Error> {
@@ -118,7 +123,7 @@ async fn get_stories_by_search(client: &Client, query: String, limit: usize) -> 
                 }
             }
         }
-        Err(error) => eprintln!("ERROR: {error}"),
+        Err(err) => eprintln!("ERROR: {err}"),
     }
     Ok(stories)
 }
@@ -126,12 +131,6 @@ async fn get_stories_by_search(client: &Client, query: String, limit: usize) -> 
 fn get_json_from_str(text: &str) -> Result<Value, serde_json::Error> {
     let value: Value = serde_json::from_str(text)?;
     Ok(value)
-}
-
-async fn get_story(client: &Client, item_url: String) -> Result<Story, reqwest::Error> {
-    let resp = client.get(item_url).send().await?;
-    let story = resp.json::<Story>().await?;
-    Ok(story)
 }
 
 #[cfg(test)]
