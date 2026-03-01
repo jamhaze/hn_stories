@@ -279,7 +279,6 @@ mod tests {
 		assert_eq!(result.unwrap(), test_story_vec);
     }
 
-    /*
     #[tokio::test]
     async fn test_no_url() {
         let client = Client::new();
@@ -309,5 +308,4 @@ mod tests {
 		mock.assert();
 		assert_eq!(result.unwrap(), test_story);
     }
-    */
 }
